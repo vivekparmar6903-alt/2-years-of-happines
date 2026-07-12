@@ -1,0 +1,58 @@
+[
+  {
+    "id": "g1",
+    "url": "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&q=80&w=600",
+    "type": "image",
+    "caption": "Holding your warm hand in mine on the chilly walk home.",
+    "aspectClass": "aspect-[3/4]"
+  },
+  {
+    "id": "g2",
+    "url": "https://assets.mixkit.co/videos/preview/mixkit-romantic-couple-on-the-beach-at-sunset-34288-large.mp4",
+    "type": "video",
+    "caption": "That unforgettable sunset over the horizon. Time stopped.",
+    "aspectClass": "aspect-[16/9]"
+  },
+  {
+    "id": "g3",
+    "url": "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&q=80&w=600",
+    "type": "image",
+    "caption": "Your sweet drawing of a heart on my arm.",
+    "aspectClass": "aspect-square"
+  },
+  {
+    "id": "g4",
+    "url": "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&q=80&w=600",
+    "type": "image",
+    "caption": "Our shadow silhouette as the sun finally set on our favorite cliff.",
+    "aspectClass": "aspect-[2/3]"
+  },
+  {
+    "id": "g5",
+    "url": "https://assets.mixkit.co/videos/preview/mixkit-holding-hands-and-walking-in-a-park-34442-large.mp4",
+    "type": "video",
+    "caption": "Walking together under the green canopy, completely at peace.",
+    "aspectClass": "aspect-[4/3]"
+  },
+  {
+    "id": "g6",
+    "url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=600",
+    "type": "image",
+    "caption": "That genuine, crinkly-nosed laugh that makes my heart skip.",
+    "aspectClass": "aspect-square"
+  },
+  {
+    "id": "g7",
+    "url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=600",
+    "type": "image",
+    "caption": "The first portrait I ever took of you. Absolutely breathtaking.",
+    "aspectClass": "aspect-[3/4]"
+  },
+  {
+    "id": "g8",
+    "url": "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=600",
+    "type": "image",
+    "caption": "Under thousands of bright, glittering festival lights with you.",
+    "aspectClass": "aspect-[16/9]"
+  }
+]

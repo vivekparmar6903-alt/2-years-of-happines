@@ -1,0 +1,122 @@
+[
+  {
+    "id": "q1",
+    "question": "Where did we share our very first kiss?",
+    "options": [
+      "In the middle of the rain in the park",
+      "Outside your apartment door under the porch light",
+      "By the seaside cliffs right after sunset",
+      "At the back of the cozy cafe"
+    ],
+    "correctAnswer": 1,
+    "explanation": "It was right under the warm porch light, shivering from the cold, but feeling absolutely electrified!"
+  },
+  {
+    "id": "q2",
+    "question": "Who is most likely to start the 'Where should we eat?' discussion and then reject every single suggestion?",
+    "options": [
+      "Definitely Leo",
+      "Definitely Maya",
+      "Both of us, in a never-ending cycle",
+      "Neither, we are incredibly decisive"
+    ],
+    "correctAnswer": 1,
+    "explanation": "Maya! Leo will suggest tacos, burgers, sushi, Italian, and Thai, and they will all get a gentle 'not feeling it today' before ordering pizza again."
+  },
+  {
+    "id": "q3",
+    "question": "What movie did we watch on our very first movie night?",
+    "options": [
+      "A terrifying horror movie that we both hid from",
+      "An award-winning romance film we both cried at",
+      "A classic sci-fi that we talked over the entire time",
+      "An indie comedy that neither of us can remember the plot of"
+    ],
+    "correctAnswer": 2,
+    "explanation": "We spent 90% of the sci-fi movie talking about our childhoods and completely ignored the spaceships."
+  },
+  {
+    "id": "q4",
+    "question": "What is Leo's absolute favorite thing about Maya?",
+    "options": [
+      "The way her eyes crinkle when she genuinely laughs",
+      "Her brilliant, passionate mind",
+      "The way she steals his hoodies and looks cute in them",
+      "All of the above (and infinitely more!)"
+    ],
+    "correctAnswer": 3,
+    "explanation": "Trick question! It's absolutely everything, though the hoodie stealing is a close second."
+  },
+  {
+    "id": "q5",
+    "question": "What is Maya's ultimate coffee order that Leo has fully memorized?",
+    "options": [
+      "Black coffee, cold and strong",
+      "Iced oat milk latte with a single pump of vanilla",
+      "Hot cappuccino with extra cocoa powder",
+      "Caramel macchiato with extra whipped cream"
+    ],
+    "correctAnswer": 1,
+    "explanation": "Iced oat milk latte with a single pump of vanilla—ordered even when it's freezing cold outside!"
+  },
+  {
+    "id": "q6",
+    "question": "Who said 'I love you' first?",
+    "options": [
+      "Leo, after practicing in the mirror for an hour",
+      "Maya, completely spontaneously in the middle of a sentence",
+      "We said it at the exact same time",
+      "A slip of the tongue by Leo during a heated card game"
+    ],
+    "correctAnswer": 0,
+    "explanation": "Leo said it first! He was so nervous, but Maya's instant smile made it all worth it."
+  },
+  {
+    "id": "q7",
+    "question": "Who is the better driver (be honest!)?",
+    "options": [
+      "Leo - safe, calm, and handles parallel parking like a pro",
+      "Maya - energetic, knows all the shortcuts, sings at the wheel",
+      "It's a tie, we both have our chaotic strengths",
+      "The GPS, because we both get lost within 5 minutes"
+    ],
+    "correctAnswer": 2,
+    "explanation": "We're a team! Leo does the tricky parking, and Maya provides the perfect road trip soundtrack."
+  },
+  {
+    "id": "q8",
+    "question": "What is our absolute favorite lazy Sunday activity?",
+    "options": [
+      "Going on an aggressive 10km morning run",
+      "Reorganizing the kitchen pantry",
+      "Napping together with soft music, followed by baking something sweet",
+      "Waking up early to clean the whole apartment"
+    ],
+    "correctAnswer": 2,
+    "explanation": "Snuggling under a mountain of blankets with coffee, listening to the rain, and baking is our happy place."
+  },
+  {
+    "id": "q9",
+    "question": "If we won the lottery tomorrow, what is the first thing we would buy?",
+    "options": [
+      "A private jet to travel the universe",
+      "A cozy cabin in the woods with a giant fireplace and glass roof",
+      "A fleet of high-end sports cars",
+      "A lifetime supply of fancy chocolate and designer hoodies"
+    ],
+    "correctAnswer": 1,
+    "explanation": "That dream glass-roof cabin in the woods, where we can read, bake, and stare at the stars every single night."
+  },
+  {
+    "id": "q10",
+    "question": "Who is more dramatic when they get a mild cold?",
+    "options": [
+      "Leo (it is basically a near-death experience)",
+      "Maya (needs to be spoon-fed soup and wrapped in 6 blankets)",
+      "We both handle sickness with ultimate grace and poise",
+      "Neither, we become unstoppable warriors of health"
+    ],
+    "correctAnswer": 0,
+    "explanation": "Leo! A 99°F temperature is officially a state of emergency requiring urgent coddling."
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "f1",
+    "text": "The Great Hoodie Heist",
+    "image": "https://images.unsplash.com/photo-1530026405186-ed1ea0ac7a63?auto=format&fit=crop&q=80&w=600",
+    "caption": "Officially, you have 'borrowed' 12 of my hoodies. Unofficially, I am down to wearing t-shirts in winter. You look better in them anyway, so I can't even complain."
+  },
+  {
+    "id": "f2",
+    "text": "The IKEA Marriage Test",
+    "image": "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=600",
+    "caption": "We spent 4 hours assembling a single nightstand. We lost the Allen wrench twice, put the drawer slides on backwards, and had a mini-meltdown over a wooden peg. We survived, barely."
+  },
+  {
+    "id": "f3",
+    "text": "You Stealing My Fries",
+    "image": "https://images.unsplash.com/photo-1541532713592-79a0317b6b77?auto=format&fit=crop&q=80&w=600",
+    "caption": "Me: 'Do you want some fries?'\nYou: 'No, I'm ordering a salad.'\nAlso you, 3 minutes after my burger arrives: *eats 80% of my golden crispy potato strips*."
+  },
+  {
+    "id": "f4",
+    "text": "The Public Sleepyhead",
+    "image": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600",
+    "caption": "You claimed you 'weren't even tired' and were going to watch the whole movie. Literally 6 minutes into the opening credits, you were snoring lightly on my collarbone."
+  },
+  {
+    "id": "f5",
+    "text": "The Bug Exterminator Duty",
+    "image": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=600",
+    "caption": "A tiny spider appeared on the living room wall. You stood on top of the dining table wielding a rolled-up magazine, screaming like it was a wild dinosaur while I had to gently escort it outside."
+  }
+]

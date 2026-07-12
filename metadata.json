@@ -1,0 +1,6 @@
+{
+  "name": "730 Days, Infinite Memories",
+  "description": "A premium, mobile-first surprise anniversary website celebrating two years together.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

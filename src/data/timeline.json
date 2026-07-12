@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "title": "Where It All Began",
+    "date": "July 11, 2024",
+    "description": "Our first date at that hidden coffee shop. We supposed to meet for 'a quick coffee', but ended up talking for five hours straight until the barista started stacking chairs.",
+    "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=600",
+    "location": "The Daily Roast Cafe",
+    "quote": "\"I knew within the first ten minutes that you were going to turn my world upside down.\"",
+    "tag": "First Meet"
+  },
+  {
+    "id": "2",
+    "title": "The Ocean and You",
+    "date": "October 24, 2024",
+    "description": "Our first weekend getaway. We drove up the coast with no map, windows down, singing along to outdated pop songs. The sunset over the sea was stunning, but I couldn't keep my eyes off you.",
+    "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=600",
+    "location": "Seaside Cliffs",
+    "quote": "\"Let's get lost like this forever.\"",
+    "tag": "Road Trip"
+  },
+  {
+    "id": "3",
+    "title": "Culinary Disaster #1",
+    "date": "December 14, 2024",
+    "description": "We attempted to make handmade gnocchi from scratch. It turned into a sticky, flour-covered paste that glued our hands together. We ended up ordering a cheap pizza and eating it on the kitchen floor.",
+    "image": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&q=80&w=600",
+    "location": "Our First Kitchen",
+    "quote": "\"Flour looks good in your hair, but maybe we stick to ordering takeout.\"",
+    "tag": "Laughs"
+  },
+  {
+    "id": "4",
+    "title": "Under the City Lights",
+    "date": "February 14, 2025",
+    "description": "A freezing Valentine's Day. We wrapped ourselves in a giant wool blanket on a rooftop overlooking the skyline, sipping hot chocolate and shivering, feeling warmer than ever.",
+    "image": "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=600",
+    "location": "Rooftop Terrace",
+    "quote": "\"No matter how cold the night, you are my home and my hearth.\"",
+    "tag": "Romantic"
+  },
+  {
+    "id": "5",
+    "title": "Dancing in the Rain",
+    "date": "April 30, 2025",
+    "description": "An unexpected downpour caught us off guard in the botanical gardens. Instead of running for cover, you grabbed my hands and dragged me onto the wet lawns for an impromptu slow dance.",
+    "image": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=600",
+    "location": "Royal Botanical Gardens",
+    "quote": "\"Some people feel the rain, others just get wet. With you, every drop is a symphony.\"",
+    "tag": "Magical"
+  },
+  {
+    "id": "6",
+    "title": "A Quiet Sunday Morning",
+    "date": "June 15, 2026",
+    "description": "Nothing grand. Just sunlight filtering through the curtains, the aroma of fresh coffee brewing, and you curled up sleeping peacefully next to me. The perfect snapshot of our quiet bliss.",
+    "image": "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&q=80&w=600",
+    "location": "Bed",
+    "quote": "\"In your silence, I find my absolute peace.\"",
+    "tag": "Togetherness"
+  }
+]

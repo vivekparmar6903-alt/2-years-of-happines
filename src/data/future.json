@@ -1,0 +1,56 @@
+[
+  {
+    "id": "b1",
+    "text": "Get engaged 💍",
+    "category": "life",
+    "completed": false
+  },
+  {
+    "id": "b2",
+    "text": "Get married surrounded by everyone we love 👰",
+    "category": "life",
+    "completed": false
+  },
+  {
+    "id": "b3",
+    "text": "Travel the world 🌏",
+    "category": "travel",
+    "completed": false
+  },
+  {
+    "id": "b4",
+    "text": "Try so many exotic foods 🍛",
+    "category": "travel",
+    "completed": false
+  },
+  {
+    "id": "b5",
+    "text": "Get insanely rich together doing what we love 💖",
+    "category": "life",
+    "completed": false
+  },
+  {
+    "id": "b6",
+    "text": "Build our dream home 🏡",
+    "category": "nesting",
+    "completed": false
+  },
+  {
+    "id": "b7",
+    "text": "Adopt a fluffy Dog and Cute Cat 🐶😺",
+    "category": "nesting",
+    "completed": false
+  },
+  {
+    "id": "b8",
+    "text": "Have happy children who get your beautiful smile 👨‍👩‍👧‍👦",
+    "category": "life",
+    "completed": false
+  },
+  {
+    "id": "b9",
+    "text": "Grow old and wrinkly together, still holding hands with love 💝",
+    "category": "life",
+    "completed": false
+  }
+]
