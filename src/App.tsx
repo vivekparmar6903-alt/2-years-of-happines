@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Music, VolumeX, Heart } from 'lucide-react';
+import { Music, VolumeX, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { AppSettings, TimelineItem, GalleryItem, FunnyCard, BucketListItem } from './types';
 
@@ -340,26 +340,6 @@ export default function App() {
           style={{ backgroundColor: 'var(--color-brand-pink, #FF5C8A)' }}
         />
 
-        {/* INSTAGRAM-STORIES STYLE TOP NAVIGATION INDICATORS */}
-        {sceneIndex > 0 && sceneIndex < totalScenes - 1 && (
-          <div className="absolute top-4 inset-x-4 z-40 flex gap-1 px-1">
-            {Array.from({ length: totalScenes }).map((_, i) => (
-              <div 
-                key={i} 
-                className="h-[2px] rounded-full flex-1 overflow-hidden bg-white/10"
-              >
-                <div 
-                  className="h-full bg-brand-pink transition-all duration-300"
-                  style={{
-                    width: i < sceneIndex ? '100%' : i === sceneIndex ? '100%' : '0%',
-                    opacity: i === sceneIndex ? 1 : 0.45,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* SOUNDTRACK STATUS CONTROLLER HEADER */}
         <div className="absolute top-8 inset-x-6 z-40 flex justify-between items-center pointer-events-none">
           <div /> {/* spacing */}
@@ -409,6 +389,39 @@ export default function App() {
             </p>
           </div>
         )}
+
+        {/* CINEMATIC BOTTOM NAVIGATION ARROWS */}
+        <div className="absolute bottom-6 inset-x-6 z-40 flex justify-between items-center pointer-events-none no-tap-navigation">
+          {sceneIndex > 0 ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSceneIndex(sceneIndex - 1);
+              }}
+              className="pointer-events-auto p-2 rounded-full text-zinc-400 hover:text-white transition-all duration-300 opacity-40 hover:opacity-100 active:scale-90 cursor-pointer"
+              title="Previous Scene"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          ) : (
+            <div />
+          )}
+
+          {sceneIndex < totalScenes - 1 ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSceneIndex(sceneIndex + 1);
+              }}
+              className="pointer-events-auto p-2 rounded-full text-zinc-400 hover:text-white transition-all duration-300 opacity-40 hover:opacity-100 active:scale-90 cursor-pointer"
+              title="Next Scene"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <div />
+          )}
+        </div>
 
       </div>
 

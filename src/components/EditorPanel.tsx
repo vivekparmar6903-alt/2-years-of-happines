@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Settings, 
   Clock, 
@@ -11,9 +11,168 @@ import {
   RefreshCw, 
   Save, 
   Play, 
-  Layers
+  Layers,
+  Upload,
+  AlertCircle
 } from 'lucide-react';
 import { AppSettings, TimelineItem, GalleryItem, FunnyCard } from '../types';
+
+interface ImageDropZoneProps {
+  value: string;
+  onChange: (newValue: string) => void;
+  label: string;
+}
+
+function ImageDropZone({ value, onChange, label }: ImageDropZoneProps) {
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = (files: FileList) => {
+    if (files.length === 0) return;
+    const file = files[0];
+    
+    // Check file size (5MB = 5 * 1024 * 1024 bytes)
+    if (file.size > 5 * 1024 * 1024) {
+      setWarning('This image is larger than 5MB. Large files may slow down loading times and bloat storage. We suggest compressing it, but we have processed it for you!');
+    } else {
+      setWarning(null);
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result && typeof e.target.result === 'string') {
+        onChange(e.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    if (e.dataTransfer.files) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      handleFiles(e.target.files);
+    }
+  };
+
+  const isBase64 = value && value.startsWith('data:');
+
+  return (
+    <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+      <label className="block text-[8px] font-mono uppercase text-zinc-500">{label}</label>
+      
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={handleClick}
+        className={`relative flex flex-col items-center justify-center p-3 border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer text-center group ${
+          isDragActive 
+            ? 'border-brand-pink bg-brand-pink/5' 
+            : 'border-zinc-800 hover:border-brand-pink/50 bg-zinc-900/40 hover:bg-zinc-900/60'
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {value ? (
+          <div className="relative w-full h-24 rounded overflow-hidden mb-2 bg-black/40 border border-zinc-800">
+            {value.includes('video') || value.endsWith('.mp4') || value.endsWith('.webm') ? (
+              <video 
+                src={value} 
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+            ) : (
+              <img 
+                src={value} 
+                alt="Preview" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            )}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-[10px] font-medium text-white gap-1">
+              <Upload className="w-3.5 h-3.5 text-brand-pink" />
+              <span>Replace Media</span>
+            </div>
+          </div>
+        ) : (
+          <div className="py-4 flex flex-col items-center justify-center gap-1.5 text-zinc-400 group-hover:text-zinc-200 transition-colors">
+            <Upload className="w-5 h-5 text-zinc-500 group-hover:text-brand-pink transition-colors" />
+            <span className="text-[10px] font-medium">Drag file here, or click to browse</span>
+          </div>
+        )}
+
+        <div className="w-full px-1 flex flex-col gap-1 text-[8px] text-zinc-500 font-mono">
+          {!isDragActive && (
+            <span className="text-zinc-600 block truncate max-w-full">
+              {isBase64 ? 'Embedded base64 media' : (value ? value : 'No media uploaded')}
+            </span>
+          )}
+          {isDragActive && <span className="text-brand-pink font-bold">Drop it here!</span>}
+        </div>
+      </div>
+
+      <div className="flex gap-1.5 items-center">
+        <input
+          type="text"
+          value={isBase64 ? 'Embedded Base64 Media' : value}
+          disabled={isBase64}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Or paste direct media URL..."
+          onClick={(e) => e.stopPropagation()}
+          className="flex-grow bg-zinc-900/40 text-[9px] border border-zinc-800 rounded px-2 py-1 text-zinc-400 focus:outline-none focus:border-brand-pink/50 disabled:opacity-50 disabled:cursor-not-allowed font-mono truncate"
+        />
+        {isBase64 && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+            }}
+            className="text-[8px] font-mono text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-1 rounded hover:bg-red-400/20 transition-all cursor-pointer"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {warning && (
+        <div className="flex items-start gap-1.5 text-[9px] text-amber-400 bg-amber-400/5 border border-amber-400/10 p-2 rounded leading-normal">
+          <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+          <span>{warning}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface EditorPanelProps {
   settings: AppSettings;
@@ -386,15 +545,11 @@ export default function EditorPanel({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Image URL</label>
-                    <input
-                      type="text"
-                      value={item.image}
-                      onChange={(e) => updateTimelineItem(idx, 'image', e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
-                    />
-                  </div>
+                  <ImageDropZone
+                    value={item.image}
+                    onChange={(val) => updateTimelineItem(idx, 'image', val)}
+                    label="Memory Photo"
+                  />
 
                   <div>
                     <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Caption/Description</label>
@@ -472,15 +627,11 @@ export default function EditorPanel({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Media URL</label>
-                    <input
-                      type="text"
-                      value={item.url}
-                      onChange={(e) => updateGalleryItem(idx, 'url', e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
-                    />
-                  </div>
+                  <ImageDropZone
+                    value={item.url}
+                    onChange={(val) => updateGalleryItem(idx, 'url', val)}
+                    label={item.type === 'video' ? 'Gallery Video' : 'Gallery Photo'}
+                  />
 
                   <div>
                     <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Caption Phrase</label>
@@ -539,15 +690,11 @@ export default function EditorPanel({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Image URL</label>
-                    <input
-                      type="text"
-                      value={item.image}
-                      onChange={(e) => updateFunnyItem(idx, 'image', e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
-                    />
-                  </div>
+                  <ImageDropZone
+                    value={item.image}
+                    onChange={(val) => updateFunnyItem(idx, 'image', val)}
+                    label="Joke / Memory Photo"
+                  />
 
                   <div>
                     <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Sub-caption Details</label>
