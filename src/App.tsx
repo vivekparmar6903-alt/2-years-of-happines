@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Music, VolumeX, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Music, VolumeX, Heart, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 
 import { AppSettings, TimelineItem, GalleryItem, FunnyCard, BucketListItem } from './types';
 
@@ -27,31 +29,15 @@ import EndingScene from './components/scenes/EndingScene';
 import EditorPanel from './components/EditorPanel';
 
 export default function App() {
-  // Load data dynamically with localStorage persistence for customized runs
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    const saved = localStorage.getItem('anniversary_app_settings');
-    return saved ? JSON.parse(saved) : defaultSettings;
-  });
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'idle'>('idle');
 
-  const [timeline, setTimeline] = useState<TimelineItem[]>(() => {
-    const saved = localStorage.getItem('anniversary_timeline');
-    return saved ? JSON.parse(saved) : timelineData;
-  });
-
-  const [gallery, setGallery] = useState<GalleryItem[]>(() => {
-    const saved = localStorage.getItem('anniversary_gallery');
-    return saved ? JSON.parse(saved) : galleryData;
-  });
-
-  const [funny, setFunny] = useState<FunnyCard[]>(() => {
-    const saved = localStorage.getItem('anniversary_funny');
-    return saved ? JSON.parse(saved) : funnyData;
-  });
-
-  const [letter, setLetter] = useState<string[]>(() => {
-    const saved = localStorage.getItem('anniversary_letter');
-    return saved ? JSON.parse(saved) : letterData;
-  });
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [timeline, setTimeline] = useState<TimelineItem[]>(timelineData);
+  const [gallery, setGallery] = useState<GalleryItem[]>(galleryData);
+  const [funny, setFunny] = useState<FunnyCard[]>(funnyData);
+  const [letter, setLetter] = useState<string[]>(letterData);
+  const [future, setFuture] = useState<BucketListItem[]>(futureData as BucketListItem[]);
 
   const [sceneIndex, setSceneIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -63,6 +49,155 @@ export default function App() {
 
   // Swipe detection coordinates
   const touchStartX = useRef<number | null>(null);
+
+  // Firebase Firestore real-time listener & initialization
+  useEffect(() => {
+    if (!db) {
+      const savedSettings = localStorage.getItem('anniversary_app_settings');
+      if (savedSettings) setSettings(JSON.parse(savedSettings));
+
+      const savedTimeline = localStorage.getItem('anniversary_timeline');
+      if (savedTimeline) setTimeline(JSON.parse(savedTimeline));
+
+      const savedGallery = localStorage.getItem('anniversary_gallery');
+      if (savedGallery) setGallery(JSON.parse(savedGallery));
+
+      const savedFunny = localStorage.getItem('anniversary_funny');
+      if (savedFunny) setFunny(JSON.parse(savedFunny));
+
+      const savedLetter = localStorage.getItem('anniversary_letter');
+      if (savedLetter) setLetter(JSON.parse(savedLetter));
+
+      const savedFuture = localStorage.getItem('anniversary_future');
+      if (savedFuture) setFuture(JSON.parse(savedFuture));
+
+      setIsInitialLoading(false);
+      return;
+    }
+
+    const storyDocRef = doc(db, 'story', 'main');
+
+    const unsubscribe = onSnapshot(storyDocRef, async (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.settings) setSettings(data.settings);
+        if (data.timeline) setTimeline(data.timeline);
+        if (data.gallery) setGallery(data.gallery);
+        if (data.funny) setFunny(data.funny);
+        if (data.letter) setLetter(data.letter);
+        if (data.future) setFuture(data.future);
+        setIsInitialLoading(false);
+      } else {
+        // Initial setup: Seed Firestore with default story data
+        try {
+          const initialDoc = {
+            settings: defaultSettings,
+            timeline: timelineData,
+            gallery: galleryData,
+            funny: funnyData,
+            letter: letterData,
+            future: futureData
+          };
+          await setDoc(storyDocRef, initialDoc);
+        } catch (err) {
+          console.error('Error seeding initial Firestore document:', err);
+        } finally {
+          setIsInitialLoading(false);
+        }
+      }
+    }, (err) => {
+      console.error('Firestore snapshot listener error:', err);
+      setIsInitialLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Save changes to Firestore and localStorage
+  const handleSaveStory = async (updates: Partial<{
+    settings: AppSettings;
+    timeline: TimelineItem[];
+    gallery: GalleryItem[];
+    funny: FunnyCard[];
+    letter: string[];
+    future: BucketListItem[];
+  }>) => {
+    if (updates.settings) {
+      setSettings(updates.settings);
+      localStorage.setItem('anniversary_app_settings', JSON.stringify(updates.settings));
+    }
+    if (updates.timeline) {
+      setTimeline(updates.timeline);
+      localStorage.setItem('anniversary_timeline', JSON.stringify(updates.timeline));
+    }
+    if (updates.gallery) {
+      setGallery(updates.gallery);
+      localStorage.setItem('anniversary_gallery', JSON.stringify(updates.gallery));
+    }
+    if (updates.funny) {
+      setFunny(updates.funny);
+      localStorage.setItem('anniversary_funny', JSON.stringify(updates.funny));
+    }
+    if (updates.letter) {
+      setLetter(updates.letter);
+      localStorage.setItem('anniversary_letter', JSON.stringify(updates.letter));
+    }
+    if (updates.future) {
+      setFuture(updates.future);
+      localStorage.setItem('anniversary_future', JSON.stringify(updates.future));
+    }
+
+    if (db) {
+      setSaveStatus('saving');
+      try {
+        const storyDocRef = doc(db, 'story', 'main');
+        await setDoc(storyDocRef, updates, { merge: true });
+        setSaveStatus('saved');
+      } catch (err) {
+        console.error('Error saving to Firestore:', err);
+        setSaveStatus('error');
+      }
+    } else {
+      setSaveStatus('idle');
+    }
+  };
+
+  // Reset to Factory defaults helper
+  const handleResetAll = async () => {
+    localStorage.removeItem('anniversary_app_settings');
+    localStorage.removeItem('anniversary_timeline');
+    localStorage.removeItem('anniversary_gallery');
+    localStorage.removeItem('anniversary_funny');
+    localStorage.removeItem('anniversary_letter');
+    localStorage.removeItem('anniversary_future');
+    
+    setSettings(defaultSettings);
+    setTimeline(timelineData);
+    setGallery(galleryData);
+    setFunny(funnyData);
+    setLetter(letterData);
+    setFuture(futureData as BucketListItem[]);
+
+    if (db) {
+      setSaveStatus('saving');
+      try {
+        const storyDocRef = doc(db, 'story', 'main');
+        await setDoc(storyDocRef, {
+          settings: defaultSettings,
+          timeline: timelineData,
+          gallery: galleryData,
+          funny: funnyData,
+          letter: letterData,
+          future: futureData
+        });
+        setSaveStatus('saved');
+      } catch (err) {
+        console.error('Error resetting Firestore document:', err);
+        setSaveStatus('error');
+      }
+    }
+    setSceneIndex(0);
+  };
 
   // Responsive mode check
   useEffect(() => {
@@ -152,11 +287,9 @@ export default function App() {
 
   // Navigation Handlers
   const handleTap = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Exclude button clicks, settings modal, or form inputs
     const target = e.target as HTMLElement;
     if (target.closest('.no-tap-navigation')) return;
 
-    // Trigger music play on first interaction
     if (!hasInteracted) {
       setHasInteracted(true);
       if (audioRef.current) {
@@ -170,12 +303,10 @@ export default function App() {
     const screenWidth = window.innerWidth;
 
     if (clickX > screenWidth * 0.45) {
-      // Tap right: Next Scene
       if (sceneIndex < totalScenes - 1) {
         setSceneIndex(sceneIndex + 1);
       }
     } else {
-      // Tap left: Previous Scene
       if (sceneIndex > 0) {
         setSceneIndex(sceneIndex - 1);
       }
@@ -194,12 +325,10 @@ export default function App() {
 
     if (Math.abs(diff) > 50) {
       if (diff > 0) {
-        // Swipe left -> Next Scene
         if (sceneIndex < totalScenes - 1) {
           setSceneIndex(sceneIndex + 1);
         }
       } else {
-        // Swipe right -> Previous Scene
         if (sceneIndex > 0) {
           setSceneIndex(sceneIndex - 1);
         }
@@ -208,29 +337,15 @@ export default function App() {
     touchStartX.current = null;
   };
 
-  // Reset to Factory defaults helper
-  const handleResetAll = () => {
-    localStorage.removeItem('anniversary_app_settings');
-    localStorage.removeItem('anniversary_timeline');
-    localStorage.removeItem('anniversary_gallery');
-    localStorage.removeItem('anniversary_funny');
-    localStorage.removeItem('anniversary_letter');
-    
-    setSettings(defaultSettings);
-    setTimeline(timelineData);
-    setGallery(galleryData);
-    setFunny(funnyData);
-    setLetter(letterData);
-    setSceneIndex(0);
-  };
-
   // Partner's Name Helper
   const partnerName = settings.names.split('&')[1]?.trim() || settings.names || 'Maya';
 
   // Dynamic Scene content builder
   let sceneContent = null;
 
-  if (sceneIndex === introIdx) {
+  if (isInitialLoading) {
+    sceneContent = <LoadingScene onComplete={() => setIsInitialLoading(false)} />;
+  } else if (sceneIndex === introIdx) {
     sceneContent = <IntroScene partnerName={partnerName} />;
   } else if (sceneIndex === loadingIdx) {
     sceneContent = <LoadingScene onComplete={() => setSceneIndex(chap1Idx)} />;
@@ -293,7 +408,7 @@ export default function App() {
       />
     );
   } else if (sceneIndex === futureIdx) {
-    sceneContent = <FutureScene futureData={futureData as BucketListItem[]} />;
+    sceneContent = <FutureScene futureData={future} />;
   } else if (sceneIndex === ending1Idx) {
     sceneContent = <EndingScene subStage={1} partnerName={partnerName} onReplay={() => setSceneIndex(0)} />;
   } else if (sceneIndex === ending2Idx) {
@@ -307,7 +422,7 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-[#09090B] flex h-full w-full select-none overflow-hidden text-zinc-100">
       
-      {/* LEFT HALF / PANEL: Editor Workspace (Only mounts when screen is wide AND edit parameter is true) */}
+      {/* LEFT HALF / PANEL: Editor Workspace */}
       {isEditMode && (
         <EditorPanel
           settings={settings}
@@ -320,6 +435,10 @@ export default function App() {
           setFunny={setFunny}
           letter={letter}
           setLetter={setLetter}
+          future={future}
+          setFuture={setFuture}
+          onSaveStory={handleSaveStory}
+          saveStatus={saveStatus}
           onResetAll={handleResetAll}
           sceneIndex={sceneIndex}
           setSceneIndex={setSceneIndex}
@@ -333,7 +452,7 @@ export default function App() {
         onTouchEnd={handleTouchEnd}
         className="flex-1 h-full relative flex flex-col justify-between overflow-hidden cursor-pointer"
       >
-        {/* Soft, beautiful, single-color subtle central vignette back lighting */}
+        {/* Soft central vignette back lighting */}
         <div className="absolute inset-0 bg-[#09090B] z-0" />
         <div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full blur-[120px] pointer-events-none z-0 opacity-[0.06] transition-all duration-1000"
@@ -342,9 +461,8 @@ export default function App() {
 
         {/* SOUNDTRACK STATUS CONTROLLER HEADER */}
         <div className="absolute top-8 inset-x-6 z-40 flex justify-between items-center pointer-events-none">
-          <div /> {/* spacing */}
+          <div />
           
-          {/* Audio controller */}
           {sceneIndex > 0 && (
             <div className="no-tap-navigation">
               <button
@@ -428,3 +546,4 @@ export default function App() {
     </div>
   );
 }
+

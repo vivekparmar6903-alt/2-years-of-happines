@@ -13,9 +13,13 @@ import {
   Play, 
   Layers,
   Upload,
-  AlertCircle
+  AlertCircle,
+  Check,
+  Compass
 } from 'lucide-react';
-import { AppSettings, TimelineItem, GalleryItem, FunnyCard } from '../types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage, isFirebaseConfigured } from '../firebase';
+import { AppSettings, TimelineItem, GalleryItem, FunnyCard, BucketListItem } from '../types';
 
 interface ImageDropZoneProps {
   value: string;
@@ -25,20 +29,38 @@ interface ImageDropZoneProps {
 
 function ImageDropZone({ value, onChange, label }: ImageDropZoneProps) {
   const [isDragActive, setIsDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFiles = (files: FileList) => {
+  const handleFiles = async (files: FileList) => {
     if (files.length === 0) return;
     const file = files[0];
     
-    // Check file size (5MB = 5 * 1024 * 1024 bytes)
-    if (file.size > 5 * 1024 * 1024) {
-      setWarning('This image is larger than 5MB. Large files may slow down loading times and bloat storage. We suggest compressing it, but we have processed it for you!');
+    // Check file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setWarning('This file is larger than 10MB.');
     } else {
       setWarning(null);
     }
 
+    if (storage) {
+      try {
+        setIsUploading(true);
+        const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storageRef = ref(storage, `photos/${Date.now()}_${cleanName}`);
+        await uploadBytes(storageRef, file);
+        const downloadUrl = await getDownloadURL(storageRef);
+        onChange(downloadUrl);
+        setIsUploading(false);
+        return;
+      } catch (err) {
+        console.warn('Firebase Storage upload failed, falling back to data URL:', err);
+        setIsUploading(false);
+      }
+    }
+
+    // Fallback to Base64 data URL
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result && typeof e.target.result === 'string') {
@@ -77,6 +99,7 @@ function ImageDropZone({ value, onChange, label }: ImageDropZoneProps) {
   };
 
   const isBase64 = value && value.startsWith('data:');
+  const isCloudUrl = value && (value.includes('firebasestorage.googleapis.com') || value.includes('storage.googleapis.com'));
 
   return (
     <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
@@ -101,7 +124,12 @@ function ImageDropZone({ value, onChange, label }: ImageDropZoneProps) {
           onChange={handleFileChange}
         />
 
-        {value ? (
+        {isUploading ? (
+          <div className="py-6 flex flex-col items-center justify-center gap-2 text-brand-pink">
+            <RefreshCw className="w-5 h-5 animate-spin text-brand-pink" />
+            <span className="text-[10px] font-mono">Uploading to Cloud Storage...</span>
+          </div>
+        ) : value ? (
           <div className="relative w-full h-24 rounded overflow-hidden mb-2 bg-black/40 border border-zinc-800">
             {value.includes('video') || value.endsWith('.mp4') || value.endsWith('.webm') ? (
               <video 
@@ -131,9 +159,9 @@ function ImageDropZone({ value, onChange, label }: ImageDropZoneProps) {
         )}
 
         <div className="w-full px-1 flex flex-col gap-1 text-[8px] text-zinc-500 font-mono">
-          {!isDragActive && (
+          {!isDragActive && !isUploading && (
             <span className="text-zinc-600 block truncate max-w-full">
-              {isBase64 ? 'Embedded base64 media' : (value ? value : 'No media uploaded')}
+              {isCloudUrl ? '☁️ Firebase Cloud Media' : isBase64 ? 'Embedded base64 media' : (value ? value : 'No media uploaded')}
             </span>
           )}
           {isDragActive && <span className="text-brand-pink font-bold">Drop it here!</span>}
@@ -185,6 +213,17 @@ interface EditorPanelProps {
   setFunny: (f: FunnyCard[]) => void;
   letter: string[];
   setLetter: (l: string[]) => void;
+  future: BucketListItem[];
+  setFuture: (f: BucketListItem[]) => void;
+  onSaveStory: (updates: Partial<{
+    settings: AppSettings;
+    timeline: TimelineItem[];
+    gallery: GalleryItem[];
+    funny: FunnyCard[];
+    letter: string[];
+    future: BucketListItem[];
+  }>) => void;
+  saveStatus: 'saved' | 'saving' | 'error' | 'idle';
   onResetAll: () => void;
   sceneIndex: number;
   setSceneIndex: (i: number) => void;
@@ -201,37 +240,46 @@ export default function EditorPanel({
   setFunny,
   letter,
   setLetter,
+  future,
+  setFuture,
+  onSaveStory,
+  saveStatus,
   onResetAll,
   sceneIndex,
   setSceneIndex
 }: EditorPanelProps) {
-  const [activeTab, setActiveTab] = useState<'general' | 'timeline' | 'gallery' | 'funny' | 'letter' | 'export'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'timeline' | 'gallery' | 'funny' | 'letter' | 'future' | 'export'>('general');
 
   // Generic settings savers
   const updateSetting = (key: keyof AppSettings, value: any) => {
     const updated = { ...settings, [key]: value };
     setSettings(updated);
-    localStorage.setItem('anniversary_app_settings', JSON.stringify(updated));
+    onSaveStory({ settings: updated });
   };
 
   const saveTimeline = (newTimeline: TimelineItem[]) => {
     setTimeline(newTimeline);
-    localStorage.setItem('anniversary_timeline', JSON.stringify(newTimeline));
+    onSaveStory({ timeline: newTimeline });
   };
 
   const saveGallery = (newGallery: GalleryItem[]) => {
     setGallery(newGallery);
-    localStorage.setItem('anniversary_gallery', JSON.stringify(newGallery));
+    onSaveStory({ gallery: newGallery });
   };
 
   const saveFunny = (newFunny: FunnyCard[]) => {
     setFunny(newFunny);
-    localStorage.setItem('anniversary_funny', JSON.stringify(newFunny));
+    onSaveStory({ funny: newFunny });
   };
 
   const saveLetter = (newL: string[]) => {
     setLetter(newL);
-    localStorage.setItem('anniversary_letter', JSON.stringify(newL));
+    onSaveStory({ letter: newL });
+  };
+
+  const saveFuture = (newF: BucketListItem[]) => {
+    setFuture(newF);
+    onSaveStory({ future: newF });
   };
 
   // Add & Delete Helpers
@@ -328,6 +376,31 @@ export default function EditorPanel({
     saveLetter(updated);
   };
 
+  const addFutureItem = () => {
+    const newItem: BucketListItem = {
+      id: `b_${Date.now()}`,
+      text: 'Our next dream milestone',
+      category: 'travel',
+      completed: false
+    };
+    saveFuture([...future, newItem]);
+  };
+
+  const removeFutureItem = (index: number) => {
+    const updated = future.filter((_, i) => i !== index);
+    saveFuture(updated);
+  };
+
+  const updateFutureItem = (index: number, key: keyof BucketListItem, value: any) => {
+    const updated = future.map((item, i) => {
+      if (i === index) {
+        return { ...item, [key]: value };
+      }
+      return item;
+    });
+    saveFuture(updated);
+  };
+
   // Downloading separate files
   const downloadJSON = (filename: string, data: any) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -344,42 +417,70 @@ export default function EditorPanel({
   return (
     <div className="w-[480px] bg-zinc-950 border-r border-zinc-800 flex flex-col h-full text-zinc-100 font-sans relative z-30 select-text overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+      <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-pink shadow-[0_0_8px_rgba(255,92,138,0.6)] animate-pulse" />
             <h1 className="text-md font-semibold tracking-tight font-display text-white">
-              730 Cinematic Studio
+              730 Studio Editor
             </h1>
           </div>
           <p className="text-[11px] text-zinc-500 mt-0.5">
-            Perfecting your dynamic story live on screen.
+            Cloud-synced story studio
           </p>
         </div>
 
-        <button
-          onClick={onResetAll}
-          className="p-1.5 rounded-lg hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
-          title="Reset to Factory Defaults"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Cloud Save Status Indicator */}
+          {saveStatus === 'saving' && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/20">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              Saving...
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20">
+              <Check className="w-3 h-3" />
+              Cloud Saved
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono text-red-400 bg-red-400/10 border border-red-400/20">
+              <AlertCircle className="w-3 h-3" />
+              Local only
+            </span>
+          )}
+          {saveStatus === 'idle' && !isFirebaseConfigured && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800">
+              Local Mode
+            </span>
+          )}
+
+          <button
+            onClick={onResetAll}
+            className="p-1.5 rounded-lg hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
+            title="Reset to Defaults"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Editor Navigation */}
-      <div className="flex border-b border-zinc-900 bg-zinc-950 px-2 pt-1 gap-1">
+      <div className="flex border-b border-zinc-900 bg-zinc-950 px-2 pt-1 gap-1 overflow-x-auto scrollbar-none">
         {[
           { id: 'general', icon: <Settings className="w-3.5 h-3.5" />, label: 'General' },
           { id: 'timeline', icon: <Clock className="w-3.5 h-3.5" />, label: 'Timeline' },
           { id: 'gallery', icon: <Image className="w-3.5 h-3.5" />, label: 'Gallery' },
           { id: 'funny', icon: <Sparkles className="w-3.5 h-3.5" />, label: 'Laughs' },
           { id: 'letter', icon: <FileText className="w-3.5 h-3.5" />, label: 'Letter' },
+          { id: 'future', icon: <Compass className="w-3.5 h-3.5" />, label: 'Future' },
           { id: 'export', icon: <Download className="w-3.5 h-3.5" />, label: 'Export' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-brand-pink text-white bg-zinc-900/40'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/20'
@@ -756,16 +857,78 @@ export default function EditorPanel({
           </div>
         )}
 
+        {/* ==================== FUTURE TAB ==================== */}
+        {activeTab === 'future' && (
+          <div className="space-y-5 animate-fadeIn">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
+                Future Milestones ({future.length})
+              </h3>
+              <button
+                onClick={addFutureItem}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-pink text-white rounded-lg text-xs font-semibold hover:opacity-90 transition-all cursor-pointer shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Goal
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {future.map((item, idx) => (
+                <div key={item.id} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-3 relative group">
+                  <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={() => removeFutureItem(idx)}
+                      className="text-zinc-500 hover:text-red-400 p-1 rounded hover:bg-zinc-900 cursor-pointer"
+                      title="Delete Goal"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <span className="text-[9px] font-mono text-brand-pink uppercase tracking-widest block">
+                    Goal {idx + 1}
+                  </span>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Goal Description</label>
+                      <input
+                        type="text"
+                        value={item.text}
+                        onChange={(e) => updateFutureItem(idx, 'text', e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] font-mono uppercase text-zinc-500 mb-0.5">Category</label>
+                      <select
+                        value={item.category}
+                        onChange={(e) => updateFutureItem(idx, 'category', e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-white"
+                      >
+                        <option value="travel">Travel</option>
+                        <option value="nesting">Nesting</option>
+                        <option value="life">Life</option>
+                        <option value="silly">Silly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ==================== EXPORT TAB ==================== */}
         {activeTab === 'export' && (
           <div className="space-y-5 animate-fadeIn">
             <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
-              Export / Save Project
+              Export / Backup JSON
             </h3>
 
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Your edits are automatically saved to your browser's <code className="text-zinc-300 font-mono text-[10px] bg-zinc-900 px-1 py-0.5 rounded">localStorage</code>. 
-              To make them permanent in your code, download these JSON files and replace the contents inside the <code className="text-zinc-300 font-mono text-[10px] bg-zinc-900 px-1 py-0.5 rounded">/src/data/</code> folder!
+              Edits are saved live to Firebase Firestore in real time. Download JSON backups below anytime!
             </p>
 
             <div className="flex flex-col gap-3.5 pt-2">
@@ -820,6 +983,17 @@ export default function EditorPanel({
                 <div>
                   <div className="font-semibold text-white">letter.json</div>
                   <div className="text-[10px] text-zinc-500 mt-0.5">Full paragraph signature letter array.</div>
+                </div>
+                <Download className="w-4 h-4 text-zinc-400 group-hover:text-brand-pink transition-colors" />
+              </button>
+
+              <button
+                onClick={() => downloadJSON('future.json', future)}
+                className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
+              >
+                <div>
+                  <div className="font-semibold text-white">future.json</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5">Future bucket list goals ({future.length} items).</div>
                 </div>
                 <Download className="w-4 h-4 text-zinc-400 group-hover:text-brand-pink transition-colors" />
               </button>
