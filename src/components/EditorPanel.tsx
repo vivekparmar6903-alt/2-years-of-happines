@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Settings, 
   Clock, 
@@ -15,7 +15,8 @@ import {
   Upload,
   AlertCircle,
   Check,
-  Compass
+  Compass,
+  X
 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage, isFirebaseConfigured } from '../firebase';
@@ -250,39 +251,94 @@ export default function EditorPanel({
 }: EditorPanelProps) {
   const [activeTab, setActiveTab] = useState<'general' | 'timeline' | 'gallery' | 'funny' | 'letter' | 'future' | 'export'>('general');
 
-  // Generic settings savers
+  // Local draft state — typing only updates draft state, not Firestore on every keystroke
+  const [draftSettings, setDraftSettings] = useState<AppSettings>(settings);
+  const [draftTimeline, setDraftTimeline] = useState<TimelineItem[]>(timeline);
+  const [draftGallery, setDraftGallery] = useState<GalleryItem[]>(gallery);
+  const [draftFunny, setDraftFunny] = useState<FunnyCard[]>(funny);
+  const [draftLetter, setDraftLetter] = useState<string[]>(letter);
+  const [draftFuture, setDraftFuture] = useState<BucketListItem[]>(future);
+
+  // Determine if draft differs from saved props
+  const isDirty = useMemo(() => {
+    return (
+      JSON.stringify(draftSettings) !== JSON.stringify(settings) ||
+      JSON.stringify(draftTimeline) !== JSON.stringify(timeline) ||
+      JSON.stringify(draftGallery) !== JSON.stringify(gallery) ||
+      JSON.stringify(draftFunny) !== JSON.stringify(funny) ||
+      JSON.stringify(draftLetter) !== JSON.stringify(letter) ||
+      JSON.stringify(draftFuture) !== JSON.stringify(future)
+    );
+  }, [
+    draftSettings, settings,
+    draftTimeline, timeline,
+    draftGallery, gallery,
+    draftFunny, funny,
+    draftLetter, letter,
+    draftFuture, future
+  ]);
+
+  // Sync draft with incoming live props when not dirty (e.g. initial load)
+  const isInitialized = useRef(false);
+  useEffect(() => {
+    if (!isInitialized.current || !isDirty) {
+      setDraftSettings(settings);
+      setDraftTimeline(timeline);
+      setDraftGallery(gallery);
+      setDraftFunny(funny);
+      setDraftLetter(letter);
+      setDraftFuture(future);
+      isInitialized.current = true;
+    }
+  }, [settings, timeline, gallery, funny, letter, future]);
+
+  // Unsaved changes browser reload/close warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Save button action handler
+  const handleSaveChanges = () => {
+    onSaveStory({
+      settings: draftSettings,
+      timeline: draftTimeline,
+      gallery: draftGallery,
+      funny: draftFunny,
+      letter: draftLetter,
+      future: draftFuture
+    });
+  };
+
+  // Exit editor mode handler
+  const handleExitEditor = () => {
+    if (isDirty) {
+      const confirmLeave = window.confirm('You have unsaved changes. Leave anyway?');
+      if (!confirmLeave) return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('edit');
+    window.location.href = url.toString();
+  };
+
+  // Factory reset with confirmation
+  const handleResetWithConfirm = () => {
+    if (window.confirm('Are you sure you want to reset all story data to factory defaults?')) {
+      onResetAll();
+    }
+  };
+
+  // Local Draft Handlers
   const updateSetting = (key: keyof AppSettings, value: any) => {
-    const updated = { ...settings, [key]: value };
-    setSettings(updated);
-    onSaveStory({ settings: updated });
+    setDraftSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const saveTimeline = (newTimeline: TimelineItem[]) => {
-    setTimeline(newTimeline);
-    onSaveStory({ timeline: newTimeline });
-  };
-
-  const saveGallery = (newGallery: GalleryItem[]) => {
-    setGallery(newGallery);
-    onSaveStory({ gallery: newGallery });
-  };
-
-  const saveFunny = (newFunny: FunnyCard[]) => {
-    setFunny(newFunny);
-    onSaveStory({ funny: newFunny });
-  };
-
-  const saveLetter = (newL: string[]) => {
-    setLetter(newL);
-    onSaveStory({ letter: newL });
-  };
-
-  const saveFuture = (newF: BucketListItem[]) => {
-    setFuture(newF);
-    onSaveStory({ future: newF });
-  };
-
-  // Add & Delete Helpers
   const addTimelineItem = () => {
     const newItem: TimelineItem = {
       id: `t_${Date.now()}`,
@@ -293,22 +349,15 @@ export default function EditorPanel({
       location: 'Paris',
       quote: 'A special words spoken here.'
     };
-    saveTimeline([...timeline, newItem]);
+    setDraftTimeline(prev => [...prev, newItem]);
   };
 
   const removeTimelineItem = (index: number) => {
-    const updated = timeline.filter((_, i) => i !== index);
-    saveTimeline(updated);
+    setDraftTimeline(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateTimelineItem = (index: number, key: keyof TimelineItem, value: any) => {
-    const updated = timeline.map((item, i) => {
-      if (i === index) {
-        return { ...item, [key]: value };
-      }
-      return item;
-    });
-    saveTimeline(updated);
+    setDraftTimeline(prev => prev.map((item, i) => i === index ? { ...item, [key]: value } : item));
   };
 
   const addGalleryItem = () => {
@@ -318,22 +367,15 @@ export default function EditorPanel({
       type: 'image',
       caption: 'A stunning captured glance.'
     };
-    saveGallery([...gallery, newItem]);
+    setDraftGallery(prev => [...prev, newItem]);
   };
 
   const removeGalleryItem = (index: number) => {
-    const updated = gallery.filter((_, i) => i !== index);
-    saveGallery(updated);
+    setDraftGallery(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateGalleryItem = (index: number, key: keyof GalleryItem, value: any) => {
-    const updated = gallery.map((item, i) => {
-      if (i === index) {
-        return { ...item, [key]: value };
-      }
-      return item;
-    });
-    saveGallery(updated);
+    setDraftGallery(prev => prev.map((item, i) => i === index ? { ...item, [key]: value } : item));
   };
 
   const addFunnyItem = () => {
@@ -343,37 +385,27 @@ export default function EditorPanel({
       image: 'https://images.unsplash.com/photo-1516624683217-bf02fc6b6b7c?q=80&w=1200&auto=format&fit=crop',
       caption: 'The story behind the laughs.'
     };
-    saveFunny([...funny, newItem]);
+    setDraftFunny(prev => [...prev, newItem]);
   };
 
   const removeFunnyItem = (index: number) => {
-    const updated = funny.filter((_, i) => i !== index);
-    saveFunny(updated);
+    setDraftFunny(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateFunnyItem = (index: number, key: keyof FunnyCard, value: any) => {
-    const updated = funny.map((item, i) => {
-      if (i === index) {
-        return { ...item, [key]: value };
-      }
-      return item;
-    });
-    saveFunny(updated);
+    setDraftFunny(prev => prev.map((item, i) => i === index ? { ...item, [key]: value } : item));
   };
 
   const updateLetterLine = (index: number, value: string) => {
-    const updated = [...letter];
-    updated[index] = value;
-    saveLetter(updated);
+    setDraftLetter(prev => prev.map((line, i) => i === index ? value : line));
   };
 
   const addLetterLine = () => {
-    saveLetter([...letter, '']);
+    setDraftLetter(prev => [...prev, '']);
   };
 
   const removeLetterLine = (index: number) => {
-    const updated = letter.filter((_, i) => i !== index);
-    saveLetter(updated);
+    setDraftLetter(prev => prev.filter((_, i) => i !== index));
   };
 
   const addFutureItem = () => {
@@ -383,22 +415,15 @@ export default function EditorPanel({
       category: 'travel',
       completed: false
     };
-    saveFuture([...future, newItem]);
+    setDraftFuture(prev => [...prev, newItem]);
   };
 
   const removeFutureItem = (index: number) => {
-    const updated = future.filter((_, i) => i !== index);
-    saveFuture(updated);
+    setDraftFuture(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateFutureItem = (index: number, key: keyof BucketListItem, value: any) => {
-    const updated = future.map((item, i) => {
-      if (i === index) {
-        return { ...item, [key]: value };
-      }
-      return item;
-    });
-    saveFuture(updated);
+    setDraftFuture(prev => prev.map((item, i) => i === index ? { ...item, [key]: value } : item));
   };
 
   // Downloading separate files
@@ -417,51 +442,35 @@ export default function EditorPanel({
   return (
     <div className="w-[480px] bg-zinc-950 border-r border-zinc-800 flex flex-col h-full text-zinc-100 font-sans relative z-30 select-text overflow-hidden">
       {/* Header */}
-      <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
+      <div className="p-4 border-b border-zinc-800 flex items-center justify-between gap-2 bg-zinc-950">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-pink shadow-[0_0_8px_rgba(255,92,138,0.6)] animate-pulse" />
-            <h1 className="text-md font-semibold tracking-tight font-display text-white">
+            <h1 className="text-sm font-semibold tracking-tight font-display text-white">
               730 Studio Editor
             </h1>
           </div>
-          <p className="text-[11px] text-zinc-500 mt-0.5">
+          <p className="text-[10px] text-zinc-500 mt-0.5">
             Cloud-synced story studio
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Cloud Save Status Indicator */}
-          {saveStatus === 'saving' && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/20">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              Saving...
-            </span>
-          )}
-          {saveStatus === 'saved' && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20">
-              <Check className="w-3 h-3" />
-              Cloud Saved
-            </span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono text-red-400 bg-red-400/10 border border-red-400/20">
-              <AlertCircle className="w-3 h-3" />
-              Local only
-            </span>
-          )}
-          {saveStatus === 'idle' && !isFirebaseConfigured && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800">
-              Local Mode
-            </span>
-          )}
-
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={onResetAll}
+            onClick={handleResetWithConfirm}
             className="p-1.5 rounded-lg hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-all cursor-pointer"
             title="Reset to Defaults"
           >
             <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={handleExitEditor}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-medium transition-all cursor-pointer"
+            title="Exit Editor Mode"
+          >
+            <X className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Exit</span>
           </button>
         </div>
       </div>
@@ -509,7 +518,7 @@ export default function EditorPanel({
                 </label>
                 <input
                   type="text"
-                  value={settings.names}
+                  value={draftSettings.names}
                   onChange={(e) => updateSetting('names', e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-pink transition-colors"
                   placeholder="Leo & Maya"
@@ -522,7 +531,7 @@ export default function EditorPanel({
                 </label>
                 <input
                   type="date"
-                  value={settings.relationshipStartDate}
+                  value={draftSettings.relationshipStartDate}
                   onChange={(e) => updateSetting('relationshipStartDate', e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-pink transition-colors"
                 />
@@ -534,7 +543,7 @@ export default function EditorPanel({
                 </label>
                 <input
                   type="text"
-                  value={settings.bgMusic}
+                  value={draftSettings.bgMusic}
                   onChange={(e) => updateSetting('bgMusic', e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-pink transition-colors"
                   placeholder="https://..."
@@ -551,13 +560,13 @@ export default function EditorPanel({
                 <div className="flex gap-2">
                   <input
                     type="color"
-                    value={settings.accentColor}
+                    value={draftSettings.accentColor}
                     onChange={(e) => updateSetting('accentColor', e.target.value)}
                     className="w-8 h-8 rounded bg-transparent border border-zinc-800 cursor-pointer"
                   />
                   <input
                     type="text"
-                    value={settings.accentColor}
+                    value={draftSettings.accentColor}
                     onChange={(e) => updateSetting('accentColor', e.target.value)}
                     className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-pink font-mono uppercase"
                   />
@@ -598,7 +607,7 @@ export default function EditorPanel({
           <div className="space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
-                Timeline Memories ({timeline.length})
+                Timeline Memories ({draftTimeline.length})
               </h3>
               <button
                 onClick={addTimelineItem}
@@ -609,7 +618,7 @@ export default function EditorPanel({
             </div>
 
             <div className="space-y-4">
-              {timeline.map((item, idx) => (
+              {draftTimeline.map((item, idx) => (
                 <div key={item.id} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-3 relative group">
                   <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-all">
                     <button
@@ -682,7 +691,7 @@ export default function EditorPanel({
           <div className="space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
-                Gallery Slides ({gallery.length})
+                Gallery Slides ({draftGallery.length})
               </h3>
               <button
                 onClick={addGalleryItem}
@@ -693,7 +702,7 @@ export default function EditorPanel({
             </div>
 
             <div className="space-y-4">
-              {gallery.map((item, idx) => (
+              {draftGallery.map((item, idx) => (
                 <div key={item.id} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-3 relative group">
                   <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-all">
                     <button
@@ -754,7 +763,7 @@ export default function EditorPanel({
           <div className="space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
-                Giggles & Inside Jokes ({funny.length})
+                Giggles & Inside Jokes ({draftFunny.length})
               </h3>
               <button
                 onClick={addFunnyItem}
@@ -765,7 +774,7 @@ export default function EditorPanel({
             </div>
 
             <div className="space-y-4">
-              {funny.map((item, idx) => (
+              {draftFunny.map((item, idx) => (
                 <div key={item.id} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-3 relative group">
                   <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-all">
                     <button
@@ -817,7 +826,7 @@ export default function EditorPanel({
           <div className="space-y-5 animate-fadeIn">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
-                Love Letter Paragraphs ({letter.length})
+                Love Letter Paragraphs ({draftLetter.length})
               </h3>
               <button
                 onClick={addLetterLine}
@@ -828,7 +837,7 @@ export default function EditorPanel({
             </div>
 
             <div className="space-y-4">
-              {letter.map((line, idx) => (
+              {draftLetter.map((line, idx) => (
                 <div key={idx} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-2 relative group">
                   <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-all">
                     <button
@@ -841,7 +850,7 @@ export default function EditorPanel({
                   </div>
 
                   <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest block">
-                    Paragraph {idx + 1} {idx === 0 ? '(Greeting / Hook)' : idx === letter.length - 1 ? '(Signature)' : ''}
+                    Paragraph {idx + 1} {idx === 0 ? '(Greeting / Hook)' : idx === draftLetter.length - 1 ? '(Signature)' : ''}
                   </span>
 
                   <textarea
@@ -862,7 +871,7 @@ export default function EditorPanel({
           <div className="space-y-5 animate-fadeIn">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-mono uppercase tracking-widest text-zinc-400">
-                Future Milestones ({future.length})
+                Future Milestones ({draftFuture.length})
               </h3>
               <button
                 onClick={addFutureItem}
@@ -874,7 +883,7 @@ export default function EditorPanel({
             </div>
 
             <div className="space-y-4">
-              {future.map((item, idx) => (
+              {draftFuture.map((item, idx) => (
                 <div key={item.id} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 space-y-3 relative group">
                   <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-all">
                     <button
@@ -933,7 +942,7 @@ export default function EditorPanel({
 
             <div className="flex flex-col gap-3.5 pt-2">
               <button
-                onClick={() => downloadJSON('settings.json', settings)}
+                onClick={() => downloadJSON('settings.json', draftSettings)}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
               >
                 <div>
@@ -944,40 +953,40 @@ export default function EditorPanel({
               </button>
 
               <button
-                onClick={() => downloadJSON('timeline.json', timeline)}
+                onClick={() => downloadJSON('timeline.json', draftTimeline)}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
               >
                 <div>
                   <div className="font-semibold text-white">timeline.json</div>
-                  <div className="text-[10px] text-zinc-500 mt-0.5">Sweet memories chapters list ({timeline.length} items).</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5">Sweet memories chapters list ({draftTimeline.length} items).</div>
                 </div>
                 <Download className="w-4 h-4 text-zinc-400 group-hover:text-brand-pink transition-colors" />
               </button>
 
               <button
-                onClick={() => downloadJSON('gallery.json', gallery)}
+                onClick={() => downloadJSON('gallery.json', draftGallery)}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
               >
                 <div>
                   <div className="font-semibold text-white">gallery.json</div>
-                  <div className="text-[10px] text-zinc-500 mt-0.5">Captioned video/photo slide assets ({gallery.length} items).</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5">Captioned video/photo slide assets ({draftGallery.length} items).</div>
                 </div>
                 <Download className="w-4 h-4 text-zinc-400 group-hover:text-brand-pink transition-colors" />
               </button>
 
               <button
-                onClick={() => downloadJSON('funny.json', funny)}
+                onClick={() => downloadJSON('funny.json', draftFunny)}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
               >
                 <div>
                   <div className="font-semibold text-white">funny.json</div>
-                  <div className="text-[10px] text-zinc-500 mt-0.5">Inside giggles, punchlines, image arrays ({funny.length} items).</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5">Inside giggles, punchlines, image arrays ({draftFunny.length} items).</div>
                 </div>
                 <Download className="w-4 h-4 text-zinc-400 group-hover:text-brand-pink transition-colors" />
               </button>
 
               <button
-                onClick={() => downloadJSON('letter.json', letter)}
+                onClick={() => downloadJSON('letter.json', draftLetter)}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
               >
                 <div>
@@ -988,12 +997,12 @@ export default function EditorPanel({
               </button>
 
               <button
-                onClick={() => downloadJSON('future.json', future)}
+                onClick={() => downloadJSON('future.json', draftFuture)}
                 className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/20 hover:bg-zinc-900 hover:border-brand-pink/40 text-xs transition-all cursor-pointer text-left group"
               >
                 <div>
                   <div className="font-semibold text-white">future.json</div>
-                  <div className="text-[10px] text-zinc-500 mt-0.5">Future bucket list goals ({future.length} items).</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5">Future bucket list goals ({draftFuture.length} items).</div>
                 </div>
                 <Download className="w-4 h-4 text-zinc-400 group-hover:text-brand-pink transition-colors" />
               </button>
@@ -1001,6 +1010,54 @@ export default function EditorPanel({
           </div>
         )}
 
+      </div>
+
+      {/* Fixed Bottom Save Action Bar */}
+      <div className="p-4 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur flex items-center justify-between gap-3 shrink-0 z-20">
+        <div className="flex items-center gap-2">
+          {isDirty ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              Unsaved Changes
+            </span>
+          ) : saveStatus === 'saving' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/20">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              Saving...
+            </span>
+          ) : saveStatus === 'saved' ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono text-emerald-400 bg-emerald-400/10 border border-emerald-400/20">
+              <Check className="w-3 h-3" />
+              All Changes Saved
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800">
+              Saved
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={handleSaveChanges}
+          disabled={!isDirty || saveStatus === 'saving'}
+          className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md ${
+            isDirty
+              ? 'bg-brand-pink hover:bg-brand-pink/90 text-white shadow-brand-pink/20 scale-[1.02] active:scale-95 font-bold'
+              : 'bg-zinc-800/80 text-zinc-500 cursor-not-allowed opacity-60'
+          }`}
+        >
+          {saveStatus === 'saving' ? (
+            <>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-3.5 h-3.5" />
+              Save Changes
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
