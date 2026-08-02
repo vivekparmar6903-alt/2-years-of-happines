@@ -96,7 +96,7 @@ export default function CountdownScene({ targetDateTime = '2026-08-15T00:00:00' 
         className="z-10 pt-4"
       >
         <span className="text-xs font-mono tracking-[0.3em] uppercase text-zinc-400">
-          730
+          730 Days of Happiness
         </span>
       </motion.div>
 
