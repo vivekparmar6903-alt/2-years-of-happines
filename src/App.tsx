@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Music, VolumeX, Heart, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -24,6 +24,7 @@ import FunnyScene from './components/scenes/FunnyScene';
 import LetterScene from './components/scenes/LetterScene';
 import FutureScene from './components/scenes/FutureScene';
 import EndingScene from './components/scenes/EndingScene';
+import CountdownScene from './components/scenes/CountdownScene';
 
 // Editor Panel
 import EditorPanel from './components/EditorPanel';
@@ -43,6 +44,36 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  const [windowWidth, setWindowWidth] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [now, setNow] = useState(() => new Date());
+
+  // Compute Reveal Gating Logic
+  const isDesktop = windowWidth >= 1024;
+  const isPreviewOverride = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === 'trueluv';
+  const revealTargetTime = settings.revealDateTime ? new Date(settings.revealDateTime).getTime() : 0;
+  // Bug 2 Fix: If revealDateTime is empty/unset, default to false (locked/countdown) rather than true
+  const isPastRevealTime = revealTargetTime > 0 ? now.getTime() >= revealTargetTime : false;
+
+  const isRevealed = isDesktop || isPreviewOverride || isPastRevealTime;
+
+  // Timer tick every second to recompute countdown / reveal status (Bug 1 Fix: stops once revealed)
+  useEffect(() => {
+    if (isRevealed) return;
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isRevealed]);
+
+  // Monitor window width
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Audio elements
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -340,11 +371,17 @@ export default function App() {
   // Partner's Name Helper
   const partnerName = settings.names.split('&')[1]?.trim() || settings.names || 'Maya';
 
+  const handleLoadingSceneComplete = useCallback(() => {
+    setSceneIndex(chap1Idx);
+  }, [chap1Idx]);
+
+  const handleInitialLoadingComplete = useCallback(() => {}, []);
+
   // Early Return while Initial Firestore / Local Data is Loading
   if (isInitialLoading) {
     return (
       <div className="fixed inset-0 bg-[#09090B] flex flex-col items-center justify-center text-zinc-100">
-        <LoadingScene onComplete={() => {}} />
+        <LoadingScene onComplete={handleInitialLoadingComplete} />
       </div>
     );
   }
@@ -355,7 +392,7 @@ export default function App() {
   if (sceneIndex === introIdx) {
     sceneContent = <IntroScene partnerName={partnerName} />;
   } else if (sceneIndex === loadingIdx) {
-    sceneContent = <LoadingScene onComplete={() => setSceneIndex(chap1Idx)} />;
+    sceneContent = <LoadingScene onComplete={handleLoadingSceneComplete} />;
   } else if (sceneIndex === chap1Idx) {
     sceneContent = (
       <ChapterTitleScene
@@ -428,128 +465,141 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 bg-[#09090B] flex h-full w-full select-none overflow-hidden text-zinc-100">
-      
-      {/* LEFT HALF / PANEL: Editor Workspace */}
-      {isEditMode && (
-        <EditorPanel
-          settings={settings}
-          setSettings={setSettings}
-          timeline={timeline}
-          setTimeline={setTimeline}
-          gallery={gallery}
-          setGallery={setGallery}
-          funny={funny}
-          setFunny={setFunny}
-          letter={letter}
-          setLetter={setLetter}
-          future={future}
-          setFuture={setFuture}
-          onSaveStory={handleSaveStory}
-          saveStatus={saveStatus}
-          onResetAll={handleResetAll}
-          sceneIndex={sceneIndex}
-          setSceneIndex={setSceneIndex}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {!isRevealed ? (
+          <CountdownScene key="countdown" targetDateTime={settings.revealDateTime} />
+        ) : (
+          <motion.div
+            key="story-workspace"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="flex h-full w-full relative"
+          >
+            {/* LEFT HALF / PANEL: Editor Workspace */}
+            {isEditMode && (
+              <EditorPanel
+                settings={settings}
+                setSettings={setSettings}
+                timeline={timeline}
+                setTimeline={setTimeline}
+                gallery={gallery}
+                setGallery={setGallery}
+                funny={funny}
+                setFunny={setFunny}
+                letter={letter}
+                setLetter={setLetter}
+                future={future}
+                setFuture={setFuture}
+                onSaveStory={handleSaveStory}
+                saveStatus={saveStatus}
+                onResetAll={handleResetAll}
+                sceneIndex={sceneIndex}
+                setSceneIndex={setSceneIndex}
+              />
+            )}
 
-      {/* RIGHT HALF / VIEWPORT: Cinematic Love Story Film */}
-      <div 
-        onClick={handleTap}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="flex-1 h-full relative flex flex-col justify-between overflow-hidden cursor-pointer"
-      >
-        {/* Soft central vignette back lighting */}
-        <div className="absolute inset-0 bg-[#09090B] z-0" />
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full blur-[120px] pointer-events-none z-0 opacity-[0.06] transition-all duration-1000"
-          style={{ backgroundColor: 'var(--color-brand-pink, #FF5C8A)' }}
-        />
+            {/* RIGHT HALF / VIEWPORT: Cinematic Love Story Film */}
+            <div 
+              onClick={handleTap}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="flex-1 h-full relative flex flex-col justify-between overflow-hidden cursor-pointer"
+            >
+              {/* Soft central vignette back lighting */}
+              <div className="absolute inset-0 bg-[#09090B] z-0" />
+              <div 
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full blur-[120px] pointer-events-none z-0 opacity-[0.06] transition-all duration-1000"
+                style={{ backgroundColor: 'var(--color-brand-pink, #FF5C8A)' }}
+              />
 
-        {/* SOUNDTRACK STATUS CONTROLLER HEADER */}
-        <div className="absolute top-8 inset-x-6 z-40 flex justify-between items-center pointer-events-none">
-          <div />
-          
-          {sceneIndex > 0 && (
-            <div className="no-tap-navigation">
-              <button
-                onClick={handleToggleMusic}
-                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all duration-500 cursor-pointer ${
-                  isPlaying 
-                    ? 'bg-brand-pink/10 border-brand-pink/30 text-brand-pink' 
-                    : 'bg-white/5 border-white/10 text-zinc-400'
-                }`}
-              >
-                {isPlaying ? (
-                  <Music className="w-3.5 h-3.5 animate-pulse" />
-                ) : (
-                  <VolumeX className="w-3.5 h-3.5" />
+              {/* SOUNDTRACK STATUS CONTROLLER HEADER */}
+              <div className="absolute top-8 inset-x-6 z-40 flex justify-between items-center pointer-events-none">
+                <div />
+                
+                {sceneIndex > 0 && (
+                  <div className="no-tap-navigation">
+                    <button
+                      onClick={handleToggleMusic}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all duration-500 cursor-pointer ${
+                        isPlaying 
+                          ? 'bg-brand-pink/10 border-brand-pink/30 text-brand-pink' 
+                          : 'bg-white/5 border-white/10 text-zinc-400'
+                      }`}
+                    >
+                      {isPlaying ? (
+                        <Music className="w-3.5 h-3.5 animate-pulse" />
+                      ) : (
+                        <VolumeX className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
+
+              {/* ACTIVE SCENE WORKSPACE */}
+              <div className="flex-grow w-full h-full flex flex-col justify-center items-center relative z-10">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={sceneIndex}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full h-full flex flex-col justify-center items-center relative"
+                  >
+                    {sceneContent}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* LOWER FOOTER */}
+              {sceneIndex === 0 && (
+                <div className="absolute bottom-10 inset-x-6 text-center pointer-events-none z-20">
+                  <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.2em] leading-relaxed">
+                    {settings.names || 'Leo & Maya'}
+                  </p>
+                </div>
+              )}
+
+              {/* CINEMATIC BOTTOM NAVIGATION ARROWS */}
+              <div className="absolute bottom-6 inset-x-6 z-40 flex justify-between items-center pointer-events-none no-tap-navigation">
+                {sceneIndex > 0 ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSceneIndex(sceneIndex - 1);
+                    }}
+                    className="pointer-events-auto p-2 rounded-full text-zinc-400 hover:text-white transition-all duration-300 opacity-40 hover:opacity-100 active:scale-90 cursor-pointer"
+                    title="Previous Scene"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                {sceneIndex < totalScenes - 1 ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSceneIndex(sceneIndex + 1);
+                    }}
+                    className="pointer-events-auto p-2 rounded-full text-zinc-400 hover:text-white transition-all duration-300 opacity-40 hover:opacity-100 active:scale-90 cursor-pointer"
+                    title="Next Scene"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <div />
+                )}
+              </div>
+
             </div>
-          )}
-        </div>
-
-        {/* ACTIVE SCENE WORKSPACE */}
-        <div className="flex-grow w-full h-full flex flex-col justify-center items-center relative z-10">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={sceneIndex}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="w-full h-full flex flex-col justify-center items-center relative"
-            >
-              {sceneContent}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* LOWER FOOTER */}
-        {sceneIndex === 0 && (
-          <div className="absolute bottom-10 inset-x-6 text-center pointer-events-none z-20">
-            <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-[0.2em] leading-relaxed">
-              {settings.names || 'Leo & Maya'}
-            </p>
-          </div>
+          </motion.div>
         )}
-
-        {/* CINEMATIC BOTTOM NAVIGATION ARROWS */}
-        <div className="absolute bottom-6 inset-x-6 z-40 flex justify-between items-center pointer-events-none no-tap-navigation">
-          {sceneIndex > 0 ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSceneIndex(sceneIndex - 1);
-              }}
-              className="pointer-events-auto p-2 rounded-full text-zinc-400 hover:text-white transition-all duration-300 opacity-40 hover:opacity-100 active:scale-90 cursor-pointer"
-              title="Previous Scene"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {sceneIndex < totalScenes - 1 ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSceneIndex(sceneIndex + 1);
-              }}
-              className="pointer-events-auto p-2 rounded-full text-zinc-400 hover:text-white transition-all duration-300 opacity-40 hover:opacity-100 active:scale-90 cursor-pointer"
-              title="Next Scene"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <div />
-          )}
-        </div>
-
-      </div>
-
+      </AnimatePresence>
     </div>
   );
 }

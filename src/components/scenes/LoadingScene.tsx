@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LoadingSceneProps {
@@ -15,6 +15,11 @@ export default function LoadingScene({ onComplete }: LoadingSceneProps) {
     'Almost there...'
   ];
 
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  });
+
   useEffect(() => {
     const timer = setInterval(() => {
       setLoadStep((prev) => {
@@ -22,14 +27,14 @@ export default function LoadingScene({ onComplete }: LoadingSceneProps) {
           return prev + 1;
         } else {
           clearInterval(timer);
-          onComplete();
+          onCompleteRef.current();
           return prev;
         }
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [onComplete]);
+  }, []);
 
   return (
     <motion.div

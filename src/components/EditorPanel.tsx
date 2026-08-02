@@ -537,6 +537,21 @@ export default function EditorPanel({
 
               <div>
                 <label className="block text-[10px] font-mono uppercase text-zinc-500 mb-1.5">
+                  Story Reveal Date & Time (Mobile Lock)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={draftSettings.revealDateTime || '2026-08-15T00:00'}
+                  onChange={(e) => updateSetting('revealDateTime', e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-pink transition-colors"
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Mobile viewers will see a live countdown lock screen until this date & time passes.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase text-zinc-500 mb-1.5">
                   Soundtrack (Direct MP3 Link)
                 </label>
                 <input

@@ -43,6 +43,7 @@ export interface AppSettings {
   siteTitle: string;
   names: string; // e.g. "Alex & Maya"
   relationshipStartDate: string; // e.g. "2024-07-11"
+  revealDateTime?: string; // e.g. "2026-08-15T00:00:00"
   accentColor: string; // Hex color code
   bgMusic: string; // URL to background audio
   themeValues: {
