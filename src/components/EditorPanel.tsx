@@ -278,19 +278,17 @@ export default function EditorPanel({
     draftFuture, future
   ]);
 
-  // Sync draft with incoming live props when not dirty (e.g. initial load)
-  const isInitialized = useRef(false);
+  // Sync draft with incoming live props when not dirty
   useEffect(() => {
-    if (!isInitialized.current || !isDirty) {
+    if (!isDirty) {
       setDraftSettings(settings);
       setDraftTimeline(timeline);
       setDraftGallery(gallery);
       setDraftFunny(funny);
       setDraftLetter(letter);
       setDraftFuture(future);
-      isInitialized.current = true;
     }
-  }, [settings, timeline, gallery, funny, letter, future]);
+  }, [settings, timeline, gallery, funny, letter, future, isDirty]);
 
   // Unsaved changes browser reload/close warning
   useEffect(() => {

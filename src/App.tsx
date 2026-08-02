@@ -340,12 +340,19 @@ export default function App() {
   // Partner's Name Helper
   const partnerName = settings.names.split('&')[1]?.trim() || settings.names || 'Maya';
 
+  // Early Return while Initial Firestore / Local Data is Loading
+  if (isInitialLoading) {
+    return (
+      <div className="fixed inset-0 bg-[#09090B] flex flex-col items-center justify-center text-zinc-100">
+        <LoadingScene onComplete={() => {}} />
+      </div>
+    );
+  }
+
   // Dynamic Scene content builder
   let sceneContent = null;
 
-  if (isInitialLoading) {
-    sceneContent = <LoadingScene onComplete={() => setIsInitialLoading(false)} />;
-  } else if (sceneIndex === introIdx) {
+  if (sceneIndex === introIdx) {
     sceneContent = <IntroScene partnerName={partnerName} />;
   } else if (sceneIndex === loadingIdx) {
     sceneContent = <LoadingScene onComplete={() => setSceneIndex(chap1Idx)} />;
